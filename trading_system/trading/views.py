@@ -33,9 +33,9 @@ def home(request):
         
         elif order_mode == "MARKET":
             if order_type == "BUY":
-                price = get_best_ask()  # Fetch best ask price for a buy order
+                price = get_best_ask(request)  # Fetch best ask price for a buy order
             elif order_type == "SELL":
-                price = get_best_bid()  # Fetch best bid price for a sell order
+                price = get_best_bid(request)  # Fetch best bid price for a sell order
             
             if price is None:
                 return render(request, 'trading/home.html', {'error': 'Unable to fetch market price for the order type.'})
@@ -59,20 +59,34 @@ def home(request):
     return render(request, 'trading/home.html', {'user': user, 'orders': orders})
 
 def get_best_ask(request):
-    if request.method == 'GET':
-    # Fetch the best ask price (lowest available price for a buy order)
-        best_ask = Order.objects.filter(order_type="SELL", is_matched=False).order_by('price').values('price', 'quantity').first()
-    if best_ask:
-        return JsonResponse({'best_ask': best_ask})
-    return JsonResponse({'best_ask': None})
+    
+    best_ask = Order.objects.filter(
+        order_type="SELL", 
+        is_matched=False
+    ).order_by('price').values('price').first()
+    
+    return best_ask['price'] if best_ask else None
 
 def get_best_bid(request):
+    
+    best_bid = Order.objects.filter(
+        order_type="BUY", 
+        is_matched=False
+    ).order_by('-price').values('price').first()
+    
+    return best_bid['price'] if best_bid else None
+
+def get_best_ask_api(request):
     if request.method == 'GET':
-    # Fetch the best bid price (highest available price for a sell order)
-        best_bid = Order.objects.filter(order_type="BUY", is_matched=False).order_by('-price').values('price', 'quantity').first()
-    if best_bid:
-        return JsonResponse({'best_bid': best_bid})
-    return JsonResponse({'best_bid': None})
+        price = get_best_ask(request)
+        return JsonResponse({'best_ask': price})
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+def get_best_bid_api(request):
+    if request.method == 'GET':
+        price = get_best_bid(request)
+        return JsonResponse({'best_bid': price})
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
 from django.shortcuts import render
